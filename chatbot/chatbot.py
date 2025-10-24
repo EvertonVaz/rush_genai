@@ -287,6 +287,7 @@ class PersistentChatbot:
             chat.repo.add_message(role=RoleType.ASSISTANT, content=response)
             chat.process_history()
             is_new_chat = False
+            return response
         except ValueError as e:
             print(f"Error: {e}\n")
 
