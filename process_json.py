@@ -6,7 +6,7 @@ from chromadb import Collection
 class ProcessJSON:
 
     def __init__(self, movies_file_path: str = "movies.json"):
-        self.client = chromadb.PersistentClient(path="/nfs/homes/evegeral/nave/genai_dev/rush/chroma_db")
+        self.client = chromadb.PersistentClient(path="./chroma_db")
         self.movies_file_path = movies_file_path
         self._setup_collection()
 

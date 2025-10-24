@@ -98,6 +98,16 @@ class PersistentChatbot:
         7. Evite questionar se o usuário quer mais informações, Gostaria de saber mais? é redundante
         </instruções_principais>
 
+        <funções_disponíveis>
+        exit(): Encerra a conversa do chatbot.
+        get_favorites(): Obtém a lista de filmes favoritos do usuário.
+        add_to_favorites(movie_id: str): Adiciona um filme aos favoritos.
+        set_rating(movie_id: str, rating: int): Define uma nota para um filme.
+        get_rating(movie_id: str): Obtém a nota do usuário para um filme.
+        set_watched(movie_id: str): Marca um filme como assistido.
+        check_watched(movie_id: str): Verifica se um filme foi assistido.
+        </funções_disponíveis>
+
         <histórico_recente>
         {history_text if history_text.strip() else "Sem histórico ainda"}
         </histórico_recente>
@@ -149,9 +159,13 @@ class PersistentChatbot:
                         "movie_id": {
                             "type": "string",
                             "description": "ID do filme a ser adicionado aos favoritos."
+                        },
+                        "titulo": {
+                            "type": "string",
+                            "description": "Título do filme a ser adicionado aos favoritos."
                         }
                     },
-                    "required": ["movie_id"],
+                    "required": ["movie_id", "titulo"],
                 }
             },
             {
@@ -221,16 +235,6 @@ class PersistentChatbot:
         if not input_text:
             raise ValueError("O prompt não pode ser vazio.")
 
-        function_declarations = {
-            "name": "exit",
-            "description": "Encerrar a conversa do chatbot.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-            }
-        }
-
         client = genai.Client()
 
         response = client.models.generate_content(
@@ -238,6 +242,7 @@ class PersistentChatbot:
             contents=input_text,
             config=types.GenerateContentConfig(
                 temperature=temp,
+                thinking_config=types.ThinkingConfig(thinking_budget=-1),
                 tools=[types.Tool(function_declarations=self.function_declarations())],
                 tool_config=types.ToolConfig(
                     function_calling_config=types.FunctionCallingConfig(

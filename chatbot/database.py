@@ -2,7 +2,7 @@ from typing import Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from chatbot.models import Message, Base, PrePrompt, Summary, UserMovies
-from chatbot.schemas import MessageData, SummaryData
+from chatbot.schemas import MessageData, SummaryData, UserMovieData
 
 DATABASE_URL = "sqlite:///./chat_history.db"
 
@@ -79,15 +79,23 @@ class UserRepository:
     def __init__(self, db_session=None):
         self.db_session = db_session if db_session else next(get_db())
 
-    def get_favorites(self) -> list[int]:
+    def get_favorites(self) -> list[UserMovieData]:
         # Retorna lista de IDs dos filmes favoritos
         user_movies = self.db_session.query(UserMovies).filter(UserMovies.is_favorite == True).all()
-        favorite_ids = [movie.filme_id for movie in user_movies]
-        return favorite_ids
+        favorites = []
+        for movie in user_movies:
+            favorites.append(UserMovieData(
+                filme_id=movie.filme_id,
+                titulo=movie.titulo,
+                rating=movie.rating,
+                is_favorite=movie.is_favorite,
+                watching=movie.watching
+            ))
+        return favorites
 
-    def add_to_favorites(self, movie_id: str) -> str:
+    def add_to_favorites(self, movie_id: str, titulo: str) -> str:
         # Adiciona filme aos favoritos
-        user_movies = UserMovies(filme_id=movie_id, is_favorite=True)
+        user_movies = UserMovies(filme_id=movie_id, titulo=titulo, is_favorite=True)
         self.db_session.add(user_movies)
         self.db_session.commit()
         self.db_session.refresh(user_movies)
@@ -97,7 +105,7 @@ class UserRepository:
         # Retorna a nota do usuário para o filme
         user_movies = self.db_session.query(UserMovies).filter(UserMovies.filme_id == movie_id).first()
         if user_movies:
-            return user_movies.rating
+            return f"O filme {user_movies.titulo} tem nota {user_movies.rating}."
         return "Filme não encontrado."
 
     def set_rating(self, movie_id: str, rating: int) -> str:
@@ -124,5 +132,5 @@ class UserRepository:
             user_movies.watching = True
             self.db_session.commit()
             self.db_session.refresh(user_movies)
-            return "Filme marcado como assistido."
+            return f"Filme '{user_movies.titulo}' marcado como assistido."
         return "Filme não encontrado."

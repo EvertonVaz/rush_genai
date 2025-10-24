@@ -20,6 +20,13 @@ class PromptData(BaseModel):
     messages_count: int
     user_input: str
 
+class UserMovieData(BaseModel):
+    filme_id: int
+    titulo: str
+    rating: float
+    is_favorite: bool
+    watching: bool
+
 
 class Movie(BaseModel):
     imdb_id: str

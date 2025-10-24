@@ -54,6 +54,7 @@ class UserMovies(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     filme_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    titulo: Mapped[str] = mapped_column(String(255), nullable=False)
     rating: Mapped[float] = mapped_column(Integer, nullable=False, default=0)
     is_favorite: Mapped[bool] = mapped_column(Integer, nullable=False, default=0)
     watching: Mapped[bool] = mapped_column(Integer, nullable=False, default=0)
