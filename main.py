@@ -11,9 +11,6 @@ def main():
     while True:
         user_input = input("Q: ")
 
-        if user_input.lower() == 'bye':
-            break
-
         get_query = process.movies_collection.query(
             query_texts=[user_input],
             n_results=3

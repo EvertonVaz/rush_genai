@@ -1,7 +1,7 @@
 from typing import Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from chatbot.models import Message, Base, PrePrompt, Summary
+from chatbot.models import Message, Base, PrePrompt, Summary, UserMovies
 from chatbot.schemas import MessageData, SummaryData
 
 DATABASE_URL = "sqlite:///./chat_history.db"
@@ -74,3 +74,55 @@ class MessageRepository:
         self.db_session.commit()
         self.db_session.refresh(preprompt)
         return preprompt
+
+class UserRepository:
+    def __init__(self, db_session=None):
+        self.db_session = db_session if db_session else next(get_db())
+
+    def get_favorites(self) -> list[int]:
+        # Retorna lista de IDs dos filmes favoritos
+        user_movies = self.db_session.query(UserMovies).filter(UserMovies.is_favorite == True).all()
+        favorite_ids = [movie.filme_id for movie in user_movies]
+        return favorite_ids
+
+    def add_to_favorites(self, movie_id: str) -> str:
+        # Adiciona filme aos favoritos
+        user_movies = UserMovies(filme_id=movie_id, is_favorite=True)
+        self.db_session.add(user_movies)
+        self.db_session.commit()
+        self.db_session.refresh(user_movies)
+        return "Filme adicionado aos favoritos."
+
+    def get_rating(self, movie_id: str) -> str:
+        # Retorna a nota do usuário para o filme
+        user_movies = self.db_session.query(UserMovies).filter(UserMovies.filme_id == movie_id).first()
+        if user_movies:
+            return user_movies.rating
+        return "Filme não encontrado."
+
+    def set_rating(self, movie_id: str, rating: int) -> str:
+        # Define uma nota para o filme
+        user_movies = self.db_session.query(UserMovies).filter(UserMovies.filme_id == movie_id).first()
+        if user_movies:
+            user_movies.rating = rating
+            self.db_session.commit()
+            self.db_session.refresh(user_movies)
+            return "Nota atualizada com sucesso."
+        return "Filme não encontrado."
+
+    def check_watched(self, movie_id: str) -> bool:
+        # Verifica se o filme foi assistido
+        user_movies = self.db_session.query(UserMovies).filter(UserMovies.filme_id == movie_id).first()
+        if user_movies:
+            return user_movies.watching
+        return False
+
+    def set_watched(self, movie_id: str) -> str:
+        # Marca um filme como assistido
+        user_movies = self.db_session.query(UserMovies).filter(UserMovies.filme_id == movie_id).first()
+        if user_movies:
+            user_movies.watching = True
+            self.db_session.commit()
+            self.db_session.refresh(user_movies)
+            return "Filme marcado como assistido."
+        return "Filme não encontrado."

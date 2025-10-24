@@ -48,3 +48,19 @@ class PrePrompt(Base):
 
     def __repr__(self):
         return f"<PrePrompt(id={self.id}, content='{self.content[:50]}...')>"
+
+class UserMovies(Base):
+    __tablename__ = "user_movies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    filme_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    rating: Mapped[float] = mapped_column(Integer, nullable=False, default=0)
+    is_favorite: Mapped[bool] = mapped_column(Integer, nullable=False, default=0)
+    watching: Mapped[bool] = mapped_column(Integer, nullable=False, default=0)
+
+
+    def __str__(self):
+        return f"User: {self.username}"
+
+    def __repr__(self):
+        return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

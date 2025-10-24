@@ -1,7 +1,7 @@
 from typing import List
 from google import genai
 from google.genai import types
-from chatbot.database import MessageRepository
+from chatbot.database import MessageRepository, UserRepository
 from chatbot.schemas import PromptData, RoleType
 
 from dotenv import load_dotenv
@@ -14,6 +14,7 @@ class PersistentChatbot:
 
     def __init__(self):
         self.repo = MessageRepository()
+        self.user_movies = UserRepository()
         self.prompt = PromptData(
             chat_history=self.repo.get_last_n_messages(n=5),
             summary_list=self.repo.get_lasts_summary(),
@@ -54,7 +55,8 @@ class PersistentChatbot:
         return self.prompt.chat_history
 
     def movie_contexts(self, movie: Movie) -> str:
-        movie_contexts = f"Título: {movie.titulo}\n"
+        movie_contexts = f"ID: {movie.imdb_id}\n"
+        movie_contexts += f"Título: {movie.titulo}\n"
         movie_contexts += f"Ano Lançamento: {movie.ano_inicio}\n"
         movie_contexts += f"Ano Término: {movie.ano_fim}\n"
         movie_contexts += f"Gêneros: {movie.generos}\n"
@@ -115,14 +117,119 @@ class PersistentChatbot:
 
         Responda de forma natural e conversacional:
         """
-        print( pre_prompt)
-        print("\n")
+
         return pre_prompt
 
+    def function_declarations(self) -> list[dict]:
+        result = [
+            {
+                "name": "exit",
+                "description": "Encerrar a conversa do chatbot.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                }
+            },
+            {
+                "name": "get_favorites",
+                "description": "Obter a lista de filmes favoritos do usuário.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                }
+            },
+            {
+                "name": "add_to_favorites",
+                "description": "Adicionar um filme aos favoritos.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "movie_id": {
+                            "type": "string",
+                            "description": "ID do filme a ser adicionado aos favoritos."
+                        }
+                    },
+                    "required": ["movie_id"],
+                }
+            },
+            {
+                "name": "set_rating",
+                "description": "Definir uma nota para um filme.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "movie_id": {
+                            "type": "string",
+                            "description": "ID do filme a ser avaliado."
+                        },
+                        "rating": {
+                            "type": "integer",
+                            "description": "Nota a ser atribuída ao filme (0-10)."
+                        }
+                    },
+                    "required": ["movie_id", "rating"],
+                }
+            },
+            {
+                "name": "get_rating",
+                "description": "Obter a nota do usuário para um filme.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "movie_id": {
+                            "type": "string",
+                            "description": "ID do filme cuja nota será recuperada."
+                        }
+                    },
+                    "required": ["movie_id"],
+                }
+            },
+            {
+                "name": "set_watched",
+                "description": "Marcar um filme como assistido.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "movie_id": {
+                            "type": "string",
+                            "description": "ID do filme a ser marcado como assistido."
+                        }
+                    },
+                    "required": ["movie_id"],
+                }
+            },
+            {
+                "name": "check_watched",
+                "description": "Verificar se um filme foi assistido.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "movie_id": {
+                            "type": "string",
+                            "description": "ID do filme a ser verificado."
+                        }
+                    },
+                    "required": ["movie_id"],
+                }
+            }
+        ]
+        return result
 
     def generate_llm_response(self, input_text: str, temp: float = 2.0) -> str:
         if not input_text:
             raise ValueError("O prompt não pode ser vazio.")
+
+        function_declarations = {
+            "name": "exit",
+            "description": "Encerrar a conversa do chatbot.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            }
+        }
 
         client = genai.Client()
 
@@ -130,10 +237,34 @@ class PersistentChatbot:
             model="gemini-2.5-flash-lite",
             contents=input_text,
             config=types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
                 temperature=temp,
+                tools=[types.Tool(function_declarations=self.function_declarations())],
+                tool_config=types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(
+                        mode="AUTO",
+                    )
+                ),
             )
         )
+        if response.candidates[0].content.parts[0].function_call:
+            tool_call = response.candidates[0].content.parts[0].function_call
+            print(tool_call)
+            if tool_call.name == "exit":
+                self.exit_chat()
+            if tool_call.name == "get_favorites":
+                favorite_ids = self.user_movies.get_favorites()
+                return f"Seus filmes favoritos têm os seguintes IDs: {', '.join(map(str, favorite_ids))}" if favorite_ids else "Você não tem filmes favoritos."
+            if tool_call.name == "add_to_favorites":
+                return self.user_movies.add_to_favorites(**tool_call.args)
+            if tool_call.name == "set_rating":
+                return self.user_movies.set_rating(**tool_call.args)
+            if tool_call.name == "get_rating":
+                return self.user_movies.get_rating(**tool_call.args)
+            if tool_call.name == "set_watched":
+                return self.user_movies.set_watched(**tool_call.args)
+            if tool_call.name == "check_watched":
+                watched = self.user_movies.check_watched(**tool_call.args)
+                return "Sim, você já assistiu a este filme." if watched else "Não, você ainda não assistiu a este filme."
 
         return response.text
 
@@ -153,6 +284,10 @@ class PersistentChatbot:
             is_new_chat = False
         except ValueError as e:
             print(f"Error: {e}\n")
+
+    def exit_chat(self):
+        print("Encerrando o chatbot. Até a próxima!")
+        exit(0)
 
 
 if __name__ == "__main__":
