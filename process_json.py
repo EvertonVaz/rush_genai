@@ -15,6 +15,8 @@ class ProcessJSON:
             self.movies_collection = self.client.get_collection(name="movies")
         else:
             self.movies_collection = self.client.create_collection(name="movies")
+            self.generate_metadata(self.movies_collection, self.read_file())
+
 
 
     def _get_int(self, value:str) -> int:
