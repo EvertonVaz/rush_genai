@@ -1,24 +1,45 @@
 import json
 import chromadb
 from chatbot.schemas import Movie
-from chromadb import Collection
+from chromadb import Collection, EmbeddingFunction, Embeddings, Documents
+from google.genai import models
+from sentence_transformers import SentenceTransformer
+from utils import movie_serialize
+
+
+class EmbeddingTextFunction(EmbeddingFunction):
+    _model_cache = None
+
+    def __init__(self):
+        if EmbeddingTextFunction._model_cache is None:
+            EmbeddingTextFunction._model_cache = SentenceTransformer(
+                "paraphrase-multilingual-MiniLM-L12-v2"
+            )
+        self._embedding_model = EmbeddingTextFunction._model_cache
+
+    def __call__(self, input: Documents) -> Embeddings:
+        return self._embedding_model.encode(input)
+
+    def embed(self, text: str) -> list[float]:
+        return self._embedding_model.encode(text)
 
 
 class ProcessJSON:
 
     def __init__(self, movies_file_path: str = "/usr/src/rush_genai/movies.json"):
-        self.client = chromadb.PersistentClient(path="./chroma_db")
-        self.movies_file_path = movies_file_path
+        self._client = chromadb.PersistentClient(
+            path="./chroma_db", settings=chromadb.Settings(anonymized_telemetry=False)
+        )
+        self._movies_file_path = movies_file_path
         self._setup_collection()
 
     def _setup_collection(self):
-        if "movies" in [col.name for col in self.client.list_collections()]:
-            self.movies_collection = self.client.get_collection(name="movies")
-        else:
-            self.movies_collection = self.client.create_collection(name="movies")
+        self.movies_collection = self._client.get_or_create_collection(
+            name="movies", embedding_function=EmbeddingTextFunction()
+        )
 
         if self.movies_collection.count() == 0:
-            self.generate_metadata(self.movies_collection, self.read_file())
+            self._generate_metadata(self.movies_collection, self.read_file())
 
     def _get_int(self, value: str) -> int:
         if value.isdigit():
@@ -27,7 +48,7 @@ class ProcessJSON:
 
     def read_file(self) -> list[Movie]:
         result = []
-        with open(self.movies_file_path, "r", encoding="utf-8") as file:
+        with open(self._movies_file_path, "r", encoding="utf-8") as file:
             movies_data = json.load(file)
             for movie in movies_data:
                 movie_obj = Movie(
@@ -57,19 +78,21 @@ class ProcessJSON:
 
         return result
 
-    def generate_metadata(self, collection: Collection, movies: list[Movie]):
+    def _generate_metadata(
+        self, collection: Collection, movies: list[Movie], limit: int = None
+    ):
         print("Generating metadata...")
+        if limit:
+            movies = movies[:limit]
         ids = [
             movie.imdb_id if getattr(movie, "imdb_id", "") else f"movie_{i}"
             for i, movie in enumerate(movies)
         ]
-        documents = [
-            f"{movie.titulo} {movie.sinopse} {movie.ano_inicio} {movie.ano_fim} {movie.generos} {movie.elenco} {movie.avaliacao} {movie.pais_origem}"
-            for movie in movies
-        ]
+        documents = [movie_serialize(movie) for movie in movies]
         metadatas = [movie.model_dump() for movie in movies]
 
         collection.add(ids=ids, documents=documents, metadatas=metadatas)
+        print(f"✅ {len(movies)} filmes adicionados com sucesso!")
 
 
 if __name__ == "__main__":

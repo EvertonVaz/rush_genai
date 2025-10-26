@@ -214,3 +214,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.env
+venv/
+docker-compose.yml
+**.pkl
+subjectss/
+chroma_db/
+chat_history.db

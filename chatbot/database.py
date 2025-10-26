@@ -96,10 +96,17 @@ class UserRepository:
     def add_to_favorites(self, movie_id: str, titulo: str) -> str:
         # Adiciona filme aos favoritos
         user_movies = UserMovies(filme_id=movie_id, titulo=titulo, is_favorite=True)
+        existing = (
+            self.db_session.query(UserMovies)
+            .filter(UserMovies.filme_id == movie_id)
+            .first()
+        )
+        if existing:
+            return f"Filme {titulo} já está nos favoritos."
         self.db_session.add(user_movies)
         self.db_session.commit()
         self.db_session.refresh(user_movies)
-        return "Filme adicionado aos favoritos."
+        return f"Filme {titulo} adicionado aos favoritos."
 
     def get_rating(self, movie_id: str) -> str:
         # Retorna a nota do usuário para o filme

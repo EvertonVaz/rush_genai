@@ -6,6 +6,14 @@ class RoleType(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
 
+class ResponseType(str, Enum):
+    FRIENDLY = "friendly"
+    MOVIE_SUGGESTION = "movie_suggestion"
+
+class ResponseData(BaseModel):
+    type: ResponseType
+    text: str = ""
+    function_call: Optional[dict] = None
 
 class MessageData(BaseModel):
     role: RoleType

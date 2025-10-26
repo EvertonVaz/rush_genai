@@ -3,12 +3,15 @@ from typing import List
 from chatbot.prompts import PromptGenerator
 from chatbot.chatbot import PersistentChatbot
 from chatbot.schemas import Movie, ResponseData, ResponseType
-from process_json import ProcessJSON
+from process_json import EmbeddingTextFunction, ProcessJSON
 import streamlit as st
 
 
 def similiar_movies(user_input: str) -> List[Movie]:
+    embedding = EmbeddingTextFunction()
     process = ProcessJSON()
+
+    # escaped_passage = relevant_passage.replace("'", "").replace('"', "").replace("\n", " ")
     get_query = process.movies_collection.query(
         query_texts=[user_input],
         n_results=3
@@ -35,9 +38,8 @@ def main():
 
             chat.prompt_data.user_input = user_input
 
-        pre_prompt = prompt_type.decide_prompt_type(chat.prompt_data.user_input)
+        pre_prompt = prompt_type.choose_assistant(chat.prompt_data.user_input)
         response = chat.simple_model(pre_prompt)
-        pre_prompt = prompt_type.decide_prompt_type(chat.prompt_data.user_input)
         response = ResponseData(**json.loads(chat.simple_model(pre_prompt)))
 
         if response.type == ResponseType.FRIENDLY:
@@ -59,4 +61,18 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    from sys import argv
+
+    prompt = " ".join(argv[1:])
+    sm = similiar_movies(prompt)
+    print(prompt)
+    for movie in sm:
+        print(f"""
+Titulo: {movie.titulo}
+Sinopse: {movie.sinopse}
+Elenco: {movie.elenco}
+Generos: {movie.generos}
+Avaliação: {movie.avaliacao}
+""".strip())
+        print(13*"---")

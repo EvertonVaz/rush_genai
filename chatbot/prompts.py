@@ -1,6 +1,6 @@
 from typing import List
-from chatbot.schemas import MessageData, Movie, PromptData, SummaryData
-
+from chatbot.schemas import MessageData, Movie, PromptData
+from utils import movie_serialize
 
 class PromptGenerator:
 
@@ -21,22 +21,6 @@ class PromptGenerator:
 
         return prompt.strip()
 
-    def movie_contexts(self, movie: Movie) -> str:
-        movie_contexts = f"ID: {movie.imdb_id}\n"
-        movie_contexts += f"Título: {movie.titulo}\n"
-        movie_contexts += f"Ano Lançamento: {movie.ano_inicio}\n"
-        movie_contexts += f"Ano Término: {movie.ano_fim}\n"
-        movie_contexts += f"Gêneros: {movie.generos}\n"
-        movie_contexts += f"Sinopse: {movie.sinopse}\n"
-        movie_contexts += f"Avaliação: {movie.avaliacao}\n"
-        movie_contexts += f"Elenco: {movie.elenco}\n"
-        movie_contexts += f"Episodios: {movie.episodios}\n"
-        movie_contexts += f"Duração: {movie.duracao} minutos\n"
-        movie_contexts += f"País de origem: {movie.pais_origem}\n"
-        movie_contexts += f"Idioma: {movie.idioma}\n"
-        movie_contexts += f"Tipo: {movie.tipo}\n"
-
-        return movie_contexts
 
     def movie_assistant(self, data: PromptData, top_3_movies: list[Movie]) -> str:
         history_text = "".join([f"{msg.role}: {msg.content}\n" for msg in data.chat_history])
@@ -45,17 +29,24 @@ class PromptGenerator:
             if data.summary_list
             else ""
         )
-        movie_contexts = "\n".join([self.movie_contexts(movie) for movie in top_3_movies])
+        movie_context = "\n".join([movie_serialize(movie) for movie in top_3_movies])
+
+        print(f"\n{movie_context}\n")
 
         pre_prompt = f"""
         <perfil>
-        Você é uma velinha de locadora que conhece bem seu acervo e ajuda usuários a encontrar filmes perfeitos para assistir.
+        Você é uma (idosa) velinha de locadora que conhece bem seu acervo e ajuda usuários a encontrar filmes perfeitos para assistir.
+        O contexto dos filmes disponíveis está listado abaixo, é o mais importante para suas respostas.
         Use o histórico da conversa e os resumos para manter o contexto.
         Seja concisa, clara e útil em suas respostas.
         </perfil>
 
+        <contexto_filmes>
+        {movie_context if movie_context.strip() else "Nenhum filme relevante encontrado"}
+        </contexto_filmes>
+
         <instruções_principais>
-        1. Responda em no máximo 25 palavras, a menos que o contexto exija mais.
+        1. Responda em no máximo 40 palavras, a menos que o contexto exija mais.
         2. Mantenha tom natural, amigável e profissional
         3. Contextualize usando histórico e resumos anteriores
         4. Faça perguntas de acompanhamento quando apropriado, mas não exagere
@@ -81,10 +72,6 @@ class PromptGenerator:
         {summary_text if summary_text.strip() else "Sem contexto anterior"}
         </resumo_contexto>
 
-        <contexto dos filmes>
-        {movie_contexts if movie_contexts.strip() else "Nenhum filme relevante encontrado"}
-        </contexto dos filmes>
-
 
         <entrada_usuário>
         {data.user_input}
@@ -95,24 +82,50 @@ class PromptGenerator:
 
         return pre_prompt.strip()
 
-    def friendly_assistant(self, user_input: str, chat_history: List[MessageData]) -> str:
-        history_text = "".join([f"{msg.role}: {msg.content}\n" for msg in chat_history])
+    def friendly_assistant(self, data: PromptData) -> str:
+        history_text = "".join([f"{msg.role}: {msg.content}\n" for msg in data.chat_history])
+        summary_text = (
+            "".join([f"{summary.content}\n" for summary in data.summary_list])
+            if data.summary_list
+            else ""
+        )
 
         prompt = f"""
         Você é uma velinha de locadora amigável e prestativa.
         Mas você também é muito sábia e experiente.
         Conversa de forma natural e envolvente.
-        Responda de forma clara e concisa, com no máximo 25 palavras.
+        Responda de forma clara e concisa, com no máximo 30 palavras.
         Use o histórico da conversa para manter o contexto.
 
         Histórico da conversa:
         {history_text if history_text.strip() else "Sem histórico ainda"}
 
-        Entrada do usuário:
-        {user_input}
+        Resumos anteriores:
+        {summary_text if summary_text.strip() else "Sem contexto anterior"}
 
+        Entrada do usuário:
+        {data.user_input}
         Responda de forma natural e conversacional:
         """
 
         return prompt.strip()
+
+    def choose_assistant(self, user_input: str) -> str:
+        response_model = '{"type": "movie_suggestion ou friendly"}'
+        prompt = f"""
+        Você deve somente escolher entre dois tipos de prompt para responder à entrada do usuário:
+        1. prompt de assistente: friendly
+        2. prompt de assistente: movie_suggestion
+        Dada a entrada do usuário, decida qual dos dois tipos de prompt é mais adequado para responder.
+        Responda apenas com o seguinte
+
+        Entrada do usuário:
+        {user_input}
+
+        Modelo de resposta:
+        {response_model}
+        """
+
+        return prompt.strip()
+
 
