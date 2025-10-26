@@ -1,6 +1,4 @@
-from chatbot.schemas import Movie
-
-
+from chatbot.schemas import Movie, UserMovieData
 
 def movie_serialize(movie: Movie) -> str:
     return f"""
@@ -18,4 +16,12 @@ def movie_serialize(movie: Movie) -> str:
     Ano Término: {movie.ano_fim}
     Duração: {movie.duracao} minutos
 
+    """
+
+def favorite_serialize(movie: UserMovieData) -> str:
+    return f"""
+    ID: {movie.filme_id}
+    Título: {movie.titulo}
+    Assistido?: {'Sim' if movie.watching else 'Não'}
+    Nota do usuário: {movie.rating if movie.rating else 'Sem nota'}
     """

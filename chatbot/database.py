@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import List
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from chatbot.models import Message, Base, PrePrompt, Summary, UserMovies
+from sqlalchemy.orm import sessionmaker
+from chatbot.models import Message, Base, Summary, UserMovies
 from chatbot.schemas import MessageData, SummaryData, UserMovieData
 
 DATABASE_URL = "sqlite:///./chat_history.db"
@@ -39,7 +39,7 @@ class MessageRepository:
         self.db_session.refresh(summary)
         return summary
 
-    def get_last_n_messages(self, n: int) -> list[MessageData]:
+    def get_recent_messages(self, n: int) -> List[MessageData]:
         messages = (
             self.db_session.query(Message)
             .order_by(Message.created_at.desc())
@@ -50,13 +50,13 @@ class MessageRepository:
         result = []
         for msg in messages:
             result.append(MessageData(role=msg.role, content=msg.content))
-        return result
+        return result[::-1]
 
     def get_total_messages_count(self) -> int:
         count = self.db_session.query(Message).count()
         return count
 
-    def get_lasts_summary(self) -> list[SummaryData]:
+    def get_lasts_summary(self) -> List[SummaryData]:
         summarys = (
             self.db_session.query(Summary)
             .order_by(Summary.created_at.desc())
@@ -66,20 +66,14 @@ class MessageRepository:
         result = []
         for summary in summarys:
             result.append(SummaryData(content=summary.content))
-        return result
+        return result[::-1]
 
-    def add_preprompt(self, content: str):
-        preprompt = PrePrompt(content=content)
-        self.db_session.add(preprompt)
-        self.db_session.commit()
-        self.db_session.refresh(preprompt)
-        return preprompt
 
 class UserRepository:
     def __init__(self, db_session=None):
         self.db_session = db_session if db_session else next(get_db())
 
-    def get_favorites(self) -> list[UserMovieData]:
+    def get_favorites(self) -> List[UserMovieData]:
         # Retorna lista de IDs dos filmes favoritos
         user_movies = self.db_session.query(UserMovies).filter(UserMovies.is_favorite == True).all()
         favorites = []

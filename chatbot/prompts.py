@@ -3,10 +3,7 @@ from chatbot.schemas import MessageData, Movie, PromptData
 from utils import movie_serialize
 
 class PromptGenerator:
-
-    def summary(self, messages: List[MessageData]) -> str:
-        history_text = "".join([f"{msg.role}: {msg.content}\n" for msg in messages])
-
+    def summary(self, history: str) -> str:
         prompt = f"""
         <instruções>
             Resuma o seguinte histórico de conversa, seja sucinto responda em no máximo 120 palavras.
@@ -15,23 +12,14 @@ class PromptGenerator:
         </instruções>
 
         <historico>
-            {history_text}
+            {history}
         </historico>
         """
 
         return prompt.strip()
 
-
-    def movie_assistant(self, data: PromptData, top_3_movies: list[Movie]) -> str:
-        history_text = "".join([f"{msg.role}: {msg.content}\n" for msg in data.chat_history])
-        summary_text = (
-            "".join([f"{summary.content}\n" for summary in data.summary_list])
-            if data.summary_list
-            else ""
-        )
-        movie_context = "\n".join([movie_serialize(movie) for movie in top_3_movies])
-
-        print(f"\n{movie_context}\n")
+    def movie_assistant(self, data: PromptData, movies: list[Movie]) -> str:
+        movie_context = "\n".join([movie_serialize(movie) for movie in movies])
 
         pre_prompt = f"""
         <perfil>
@@ -58,18 +46,18 @@ class PromptGenerator:
         exit(): Encerra a conversa do chatbot.
         get_favorites(): Obtém a lista de filmes favoritos do usuário.
         add_to_favorites(movie_id: str): Adiciona um filme aos favoritos.
-        set_rating(movie_id: str, rating: int): Define uma nota para um filme.
-        get_rating(movie_id: str): Obtém a nota do usuário para um filme.
-        set_watched(movie_id: str): Marca um filme como assistido.
+        set_rating(movie_id: str, rating: int): Define uma nota de avaliação para um filme.
+        get_rating(movie_id: str): Obtém a nota de avaliação do usuário para um filme.
+        set_watched(movie_id: str): Marca ou coloca um filme como assistido.
         check_watched(movie_id: str): Verifica se um filme foi assistido.
         </funções_disponíveis>
 
         <histórico_recente>
-        {history_text if history_text.strip() else "Sem histórico ainda"}
+        {data.history if data.history.strip() else "Sem histórico ainda"}
         </histórico_recente>
 
         <resumo_contexto>
-        {summary_text if summary_text.strip() else "Sem contexto anterior"}
+        {data.summarys if data.summarys.strip() else "Sem contexto anterior"}
         </resumo_contexto>
 
 
@@ -83,13 +71,6 @@ class PromptGenerator:
         return pre_prompt.strip()
 
     def friendly_assistant(self, data: PromptData) -> str:
-        history_text = "".join([f"{msg.role}: {msg.content}\n" for msg in data.chat_history])
-        summary_text = (
-            "".join([f"{summary.content}\n" for summary in data.summary_list])
-            if data.summary_list
-            else ""
-        )
-
         prompt = f"""
         Você é uma velinha de locadora amigável e prestativa.
         Mas você também é muito sábia e experiente.
@@ -98,10 +79,10 @@ class PromptGenerator:
         Use o histórico da conversa para manter o contexto.
 
         Histórico da conversa:
-        {history_text if history_text.strip() else "Sem histórico ainda"}
+        {data.history if data.history.strip() else "Sem histórico ainda"}
 
         Resumos anteriores:
-        {summary_text if summary_text.strip() else "Sem contexto anterior"}
+        {data.summarys if data.summarys.strip() else "Sem contexto anterior"}
 
         Entrada do usuário:
         {data.user_input}
@@ -111,19 +92,21 @@ class PromptGenerator:
         return prompt.strip()
 
     def choose_assistant(self, user_input: str) -> str:
-        response_model = '{"type": "movie_suggestion ou friendly"}'
+        response_model = '{"type": "movie_suggestion ou friendly", text: "prompt para o modelo de RAG"}'
         prompt = f"""
         Você deve somente escolher entre dois tipos de prompt para responder à entrada do usuário:
         1. prompt de assistente: friendly
         2. prompt de assistente: movie_suggestion
+        3. melhore o prompt do usuario para ter um melhor desempenho no modelo de RAG
         Dada a entrada do usuário, decida qual dos dois tipos de prompt é mais adequado para responder.
-        Responda apenas com o seguinte
+        O campo de texto deve ser o prompt aprimorado para o modelo de RAG.
+        Responda no seguinte formato JSON:
+        {response_model}
+
 
         Entrada do usuário:
         {user_input}
 
-        Modelo de resposta:
-        {response_model}
         """
 
         return prompt.strip()

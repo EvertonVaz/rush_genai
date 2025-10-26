@@ -96,18 +96,4 @@ class ProcessJSON:
 
 
 if __name__ == "__main__":
-    from sys import argv
-
-    processor = ProcessJSON()
-
-    prompt = " ".join(argv[1:])
-    print(prompt, "\n", processor.movies_collection.count())
-
-    get_query = processor.movies_collection.query(query_texts=[prompt], n_results=3)
-
-    top_3_movies = []
-    for movie_data in get_query["metadatas"]:
-        for data in movie_data:
-            top_3_movies.append(Movie(**data))
-
-    print(top_3_movies)
+    pass

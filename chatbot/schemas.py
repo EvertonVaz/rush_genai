@@ -23,13 +23,13 @@ class SummaryData(BaseModel):
     content: str
 
 class PromptData(BaseModel):
-    chat_history: list[MessageData]
-    summary_list: list[SummaryData]
+    history: str
+    summarys: str
     messages_count: int
     user_input: str
 
 class UserMovieData(BaseModel):
-    filme_id: int
+    filme_id: str
     titulo: str
     rating: float
     is_favorite: bool
