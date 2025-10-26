@@ -3,9 +3,10 @@ import chromadb
 from chatbot.schemas import Movie
 from chromadb import Collection
 
+
 class ProcessJSON:
 
-    def __init__(self, movies_file_path: str = "movies.json"):
+    def __init__(self, movies_file_path: str = "/usr/src/rush_genai/movies.json"):
         self.client = chromadb.PersistentClient(path="./chroma_db")
         self.movies_file_path = movies_file_path
         self._setup_collection()
@@ -15,12 +16,12 @@ class ProcessJSON:
             self.movies_collection = self.client.get_collection(name="movies")
         else:
             self.movies_collection = self.client.create_collection(name="movies")
+
+        if self.movies_collection.count() == 0:
             self.generate_metadata(self.movies_collection, self.read_file())
 
-
-
-    def _get_int(self, value:str) -> int:
-        if(value.isdigit()):
+    def _get_int(self, value: str) -> int:
+        if value.isdigit():
             return int(value)
         return 0
 
@@ -42,11 +43,15 @@ class ProcessJSON:
                     pais_origem=movie.get("pais_origem", ""),
                     idioma=movie.get("idioma", ""),
                     sinopse=movie.get("sinopse", ""),
-                    avaliacao=float(movie.get("avaliacao", 0.0)) if movie.get("avaliacao", "0.0") != '' else 0.0,
+                    avaliacao=(
+                        float(movie.get("avaliacao", 0.0))
+                        if movie.get("avaliacao", "0.0") != ""
+                        else 0.0
+                    ),
                     numVotos=self._get_int(movie.get("numVotos", 0)),
                     generos=movie.get("generos", []),
                     elenco=movie.get("elenco", []),
-                    url_imagem=movie.get("url_imagem", "")
+                    url_imagem=movie.get("url_imagem", ""),
                 )
                 result.append(movie_obj)
 
@@ -54,12 +59,32 @@ class ProcessJSON:
 
     def generate_metadata(self, collection: Collection, movies: list[Movie]):
         print("Generating metadata...")
-        ids = [movie.imdb_id if getattr(movie, "imdb_id", "") else f"movie_{i}" for i, movie in enumerate(movies)]
-        documents = [ (movie.titulo) for movie in movies ]
+        ids = [
+            movie.imdb_id if getattr(movie, "imdb_id", "") else f"movie_{i}"
+            for i, movie in enumerate(movies)
+        ]
+        documents = [
+            f"{movie.titulo} {movie.sinopse} {movie.ano_inicio} {movie.ano_fim} {movie.generos} {movie.elenco} {movie.avaliacao} {movie.pais_origem}"
+            for movie in movies
+        ]
         metadatas = [movie.model_dump() for movie in movies]
 
-        collection.add(
-            ids=ids,
-            documents=documents,
-            metadatas=metadatas
-        )
+        collection.add(ids=ids, documents=documents, metadatas=metadatas)
+
+
+if __name__ == "__main__":
+    from sys import argv
+
+    processor = ProcessJSON()
+
+    prompt = " ".join(argv[1:])
+    print(prompt, "\n", processor.movies_collection.count())
+
+    get_query = processor.movies_collection.query(query_texts=[prompt], n_results=3)
+
+    top_3_movies = []
+    for movie_data in get_query["metadatas"]:
+        for data in movie_data:
+            top_3_movies.append(Movie(**data))
+
+    print(top_3_movies)
