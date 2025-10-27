@@ -36,19 +36,6 @@ class Summary(Base):
     def __repr__(self):
         return f"<Summary(id={self.id}, summary_type='{self.summary_type}', content='{self.content[:50]}...')>"
 
-
-class PrePrompt(Base):
-    __tablename__ = "preprompts"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-
-    def __str__(self):
-        return f"PrePrompt: {self.content}"
-
-    def __repr__(self):
-        return f"<PrePrompt(id={self.id}, content='{self.content[:50]}...')>"
-
 class UserMovies(Base):
     __tablename__ = "user_movies"
 

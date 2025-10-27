@@ -6,7 +6,7 @@ from google.genai import types
 from chatbot.database import UserRepository
 from chatbot.schemas import ResponseData
 from chatbot.func_declarations import function_declarations
-from utils import favorite_serialize
+from utils import favorite_serialize, measure_time_execution
 
 from dotenv import load_dotenv
 
@@ -14,15 +14,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class PersistentChatbot:
+class ChatBot:
 
+    @measure_time_execution
     def simple_model(self, input_text: str) -> ResponseData:
+        if not input_text:
+            raise ValueError("O prompt não pode ser vazio.")
+
         client = genai.Client()
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             contents=input_text,
             config=types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
                 temperature=0.0,
                 response_mime_type="application/json",
             ),
@@ -32,16 +37,17 @@ class PersistentChatbot:
             response_dict = json.loads(response.text)
 
             if not isinstance(response_dict, dict):
-                raise ValueError(f"Esperava dict, recebeu {type(response_dict)}")
+                raise ValueError(f"Esperava dict, recebeu {type(response_dict)}, {response}")
 
-            return ResponseData(**response_dict)
-        
+            return ResponseData.model_validate(response_dict)
+
         except json.JSONDecodeError as e:
             print(f"Erro ao decodificar JSON: {e}, resposta recebida: {response.text}")
         except TypeError as e:
             print(f"Erro de tipo: {e}, resposta recebida: {response.text}")
 
-    def thinking_model(self, input_text: str, temp: float = 2.0) -> str:
+    @measure_time_execution
+    def thinking_model(self, input_text: str, temp: float = 1.0) -> str:
         if not input_text:
             raise ValueError("O prompt não pode ser vazio.")
 

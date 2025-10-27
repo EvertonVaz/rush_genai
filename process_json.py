@@ -1,13 +1,15 @@
 import json
+from typing import List
 import chromadb
 from chatbot.schemas import Movie
 from chromadb import Collection, EmbeddingFunction, Embeddings, Documents
-from google.genai import models
 from sentence_transformers import SentenceTransformer
-from utils import movie_serialize
+from utils import measure_time_execution, movie_serialize
 
 
 class EmbeddingTextFunction(EmbeddingFunction):
+    _movies_file_path: str
+    _movies_collection: Collection
     _model_cache = None
 
     def __init__(self):
@@ -20,8 +22,6 @@ class EmbeddingTextFunction(EmbeddingFunction):
     def __call__(self, input: Documents) -> Embeddings:
         return self._embedding_model.encode(input)
 
-    def embed(self, text: str) -> list[float]:
-        return self._embedding_model.encode(text)
 
 
 class ProcessJSON:
@@ -34,12 +34,17 @@ class ProcessJSON:
         self._setup_collection()
 
     def _setup_collection(self):
-        self.movies_collection = self._client.get_or_create_collection(
+        self._movies_collection = self._client.get_or_create_collection(
             name="movies", embedding_function=EmbeddingTextFunction()
         )
 
-        if self.movies_collection.count() == 0:
-            self._generate_metadata(self.movies_collection, self.read_file())
+        if self._movies_collection.count() == 0:
+            self._generate_metadata(self._movies_collection, self.read_file())
+
+    @property
+    def movies_collection(self):
+        """Propriedade pública para acessar a collection"""
+        return self._movies_collection
 
     def _get_int(self, value: str) -> int:
         if value.isdigit():
@@ -93,6 +98,21 @@ class ProcessJSON:
 
         collection.add(ids=ids, documents=documents, metadatas=metadatas)
         print(f"✅ {len(movies)} filmes adicionados com sucesso!")
+
+    @measure_time_execution
+    def similiar_movies(self, user_input: str) -> List[Movie]:
+
+        get_query = self._movies_collection.query(
+            query_texts=[user_input],
+            n_results=3
+        )
+
+        similiar_movies = []
+        for movie_data in get_query["metadatas"]:
+            for data in movie_data:
+                similiar_movies.append(Movie(**data))
+
+        return similiar_movies
 
 
 if __name__ == "__main__":
