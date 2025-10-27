@@ -62,10 +62,6 @@ def main():
             msg_repo.add_message(role=RoleType.ASSISTANT, content=response)
 
 
-
-
-
-
 if __name__ == "__main__":
     main()
 
