@@ -1,7 +1,7 @@
 from typing import List
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from chatbot.models import Message, Base, Summary, UserMovies
+from chatbot.models import Message, Base, Summary, Favorites
 from chatbot.schemas import MessageData, SummaryData, UserMovieData
 
 DATABASE_URL = "sqlite:///./chat_history.db"
@@ -75,9 +75,9 @@ class UserRepository:
 
     def get_favorites(self) -> List[UserMovieData]:
         # Retorna lista de IDs dos filmes favoritos
-        user_movies = self.db_session.query(UserMovies).filter(UserMovies.is_favorite == True).all()
+        favorites = self.db_session.query(Favorites).filter(Favorites.is_favorite == True).all()
         favorites = []
-        for movie in user_movies:
+        for movie in favorites:
             favorites.append(UserMovieData(
                 filme_id=movie.filme_id,
                 titulo=movie.titulo,
@@ -89,49 +89,49 @@ class UserRepository:
 
     def add_to_favorites(self, movie_id: str, titulo: str) -> str:
         # Adiciona filme aos favoritos
-        user_movies = UserMovies(filme_id=movie_id, titulo=titulo, is_favorite=True)
+        favorites = Favorites(filme_id=movie_id, titulo=titulo, is_favorite=True)
         existing = (
-            self.db_session.query(UserMovies)
-            .filter(UserMovies.filme_id == movie_id)
+            self.db_session.query(Favorites)
+            .filter(Favorites.filme_id == movie_id)
             .first()
         )
         if existing:
             return f"Filme {titulo} já está nos favoritos."
-        self.db_session.add(user_movies)
+        self.db_session.add(favorites)
         self.db_session.commit()
-        self.db_session.refresh(user_movies)
+        self.db_session.refresh(favorites)
         return f"Filme {titulo} adicionado aos favoritos."
 
     def get_rating(self, movie_id: str) -> str:
         # Retorna a nota do usuário para o filme
-        user_movies = self.db_session.query(UserMovies).filter(UserMovies.filme_id == movie_id).first()
-        if user_movies:
-            return f"O filme {user_movies.titulo} tem nota {user_movies.rating}."
+        favorites = self.db_session.query(Favorites).filter(Favorites.filme_id == movie_id).first()
+        if favorites:
+            return f"O filme {favorites.titulo} tem nota {favorites.rating}."
         return "Filme não encontrado."
 
     def set_rating(self, movie_id: str, rating: int) -> str:
         # Define uma nota para o filme
-        user_movies = self.db_session.query(UserMovies).filter(UserMovies.filme_id == movie_id).first()
-        if user_movies:
-            user_movies.rating = rating
+        favorites = self.db_session.query(Favorites).filter(Favorites.filme_id == movie_id).first()
+        if favorites:
+            favorites.rating = rating
             self.db_session.commit()
-            self.db_session.refresh(user_movies)
+            self.db_session.refresh(favorites)
             return "Nota atualizada com sucesso."
         return "Filme não encontrado."
 
     def check_watched(self, movie_id: str) -> bool:
         # Verifica se o filme foi assistido
-        user_movies = self.db_session.query(UserMovies).filter(UserMovies.filme_id == movie_id).first()
-        if user_movies:
-            return user_movies.watching
+        favorites = self.db_session.query(Favorites).filter(Favorites.filme_id == movie_id).first()
+        if favorites:
+            return favorites.watching
         return False
 
     def set_watched(self, movie_id: str) -> str:
         # Marca um filme como assistido
-        user_movies = self.db_session.query(UserMovies).filter(UserMovies.filme_id == movie_id).first()
-        if user_movies:
-            user_movies.watching = True
+        favorites = self.db_session.query(Favorites).filter(Favorites.filme_id == movie_id).first()
+        if favorites:
+            favorites.watching = True
             self.db_session.commit()
-            self.db_session.refresh(user_movies)
-            return f"Filme '{user_movies.titulo}' marcado como assistido."
+            self.db_session.refresh(favorites)
+            return f"Filme '{favorites.titulo}' marcado como assistido."
         return "Filme não encontrado."

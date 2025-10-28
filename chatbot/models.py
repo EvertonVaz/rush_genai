@@ -36,8 +36,8 @@ class Summary(Base):
     def __repr__(self):
         return f"<Summary(id={self.id}, summary_type='{self.summary_type}', content='{self.content[:50]}...')>"
 
-class UserMovies(Base):
-    __tablename__ = "user_movies"
+class Favorites(Base):
+    __tablename__ = "favorites"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     filme_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)

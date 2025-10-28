@@ -90,27 +90,27 @@ class ChatBot:
     def function_call_response(self, tool_call) -> str:
         if not tool_call:
             return ""
-        user_movies = UserRepository()
+        favorites = UserRepository()
 
         if tool_call.name == "exit":
             self.exit_chat()
         if tool_call.name == "add_to_favorites":
-            return user_movies.add_to_favorites(**tool_call.args)
+            return favorites.add_to_favorites(**tool_call.args)
         if tool_call.name == "set_rating":
-            return user_movies.set_rating(**tool_call.args)
+            return favorites.set_rating(**tool_call.args)
         if tool_call.name == "get_rating":
-            return user_movies.get_rating(**tool_call.args)
+            return favorites.get_rating(**tool_call.args)
         if tool_call.name == "set_watched":
-            return user_movies.set_watched(**tool_call.args)
+            return favorites.set_watched(**tool_call.args)
         if tool_call.name == "check_watched":
-            watched = user_movies.check_watched(**tool_call.args)
+            watched = favorites.check_watched(**tool_call.args)
             return (
                 "Sim, você já assistiu a este filme."
                 if watched
                 else "Não, você ainda não assistiu a este filme."
             )
         if tool_call.name == "get_favorites":
-            favorites = user_movies.get_favorites()
+            favorites = favorites.get_favorites()
             return (
                 f"Seus filmes favoritos:\n{'\n'.join(map(favorite_serialize, favorites))}"
                 if favorites

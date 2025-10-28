@@ -8,8 +8,6 @@ from utils import measure_time_execution, movie_serialize
 
 
 class EmbeddingTextFunction(EmbeddingFunction):
-    _movies_file_path: str
-    _movies_collection: Collection
     _model_cache = None
 
     def __init__(self):
