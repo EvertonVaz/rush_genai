@@ -16,6 +16,19 @@ load_dotenv()
 
 class ChatBot:
 
+    def _clean_str(self, texto: str) -> str:
+        """Remove markdown code blocks da resposta"""
+        texto = texto.strip()
+
+        if texto.startswith("```json"):
+            texto = texto[7:]
+        elif texto.startswith("```"):
+            texto = texto[3:]
+        if texto.endswith("```"):
+            texto = texto[:-3]
+
+        return texto.strip()
+
     @measure_time_execution
     def simple_model(self, input_text: str) -> ResponseData:
         if not input_text:
@@ -34,7 +47,8 @@ class ChatBot:
         )
 
         try:
-            response_dict = json.loads(response.text)
+            response = self._clean_str(response.text)
+            response_dict = json.loads(response)
 
             if not isinstance(response_dict, dict):
                 raise ValueError(f"Esperava dict, recebeu {type(response_dict)}, {response}")
